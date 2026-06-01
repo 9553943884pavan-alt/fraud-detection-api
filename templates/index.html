@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fraud Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Dark industrial theme — precision, security, trust
+   ============================================================ */
+:root {
+  --bg:         #0a0c10;
+  --surface:    #111318;
+  --surface2:   #1a1d24;
+  --border:     #252830;
+  --accent:     #00e5ff;
+  --danger:     #ff3b5c;
+  --safe:       #00e676;
+  --warn:       #ffb300;
+  --text:       #e8eaf0;
+  --muted:      #6b7280;
+  --font-mono:  'Space Mono', monospace;
+  --font-main:  'Syne', sans-serif;
+  --radius:     8px;
+  --glow-cyan:  0 0 20px rgba(0,229,255,0.25);
+  --glow-red:   0 0 20px rgba(255,59,92,0.35);
+  --glow-green: 0 0 20px rgba(0,230,118,0.25);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grid background */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+}
+
+/* ============================================================ HEADER */
+header {
+  position: relative; z-index:10;
+  padding: 20px 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px;
+  background: rgba(10,12,16,0.95);
+  backdrop-filter: blur(10px);
+}
+
+.logo {
+  width:40px; height:40px;
+  background: var(--accent);
+  border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px;
+  box-shadow: var(--glow-cyan);
+  flex-shrink:0;
+}
+
+.header-title h1 {
+  font-size:20px; font-weight:800; letter-spacing:0.5px;
+  color: var(--text);
+}
+.header-title p {
+  font-size:12px; color:var(--muted); font-family:var(--font-mono);
+  margin-top:2px;
+}
+
+.status-badge {
+  margin-left:auto;
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--font-mono); font-size:11px;
+  color:var(--safe);
+  background: rgba(0,230,118,0.08);
+  border:1px solid rgba(0,230,118,0.2);
+  padding:6px 14px; border-radius:20px;
+}
+.status-dot {
+  width:7px; height:7px; border-radius:50%;
+  background:var(--safe);
+  animation: pulse-green 2s ease-in-out infinite;
+}
+
+/* ============================================================ TABS */
+.tabs-bar {
+  position:relative; z-index:10;
+  display:flex; gap:4px;
+  padding:16px 40px 0;
+  border-bottom:1px solid var(--border);
+  background: rgba(10,12,16,0.9);
+}
+
+.tab-btn {
+  padding:10px 22px;
+  background:transparent; border:none;
+  color:var(--muted); font-family:var(--font-main);
+  font-size:13px; font-weight:600;
+  cursor:pointer; border-radius:6px 6px 0 0;
+  border:1px solid transparent;
+  border-bottom:none;
+  transition: all 0.2s;
+  letter-spacing:0.3px;
+}
+.tab-btn:hover { color:var(--text); background:var(--surface2); }
+.tab-btn.active {
+  color:var(--accent); background:var(--surface);
+  border-color:var(--border);
+  border-bottom:1px solid var(--surface);
+  margin-bottom:-1px;
+}
+
+/* ============================================================ MAIN */
+main {
+  position:relative; z-index:5;
+  max-width:1200px; margin:0 auto;
+  padding:32px 40px;
+}
+
+.tab-panel { display:none; }
+.tab-panel.active { display:block; animation: fadeUp 0.3s ease; }
+
+/* ============================================================ CARDS */
+.card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:24px;
+}
+.card-header {
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:20px;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.card-header h2 {
+  font-size:14px; font-weight:700;
+  letter-spacing:1px; text-transform:uppercase; color:var(--muted);
+}
+.card-icon {
+  width:30px; height:30px; border-radius:6px;
+  background:rgba(0,229,255,0.1);
+  display:flex; align-items:center; justify-content:center; font-size:14px;
+  border:1px solid rgba(0,229,255,0.2);
+}
+
+/* ============================================================ GRID LAYOUT */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+
+/* ============================================================ CONTROLS */
+.filter-row {
+  display:flex; gap:8px; margin-bottom:16px;
+}
+.filter-btn {
+  padding:7px 16px; border-radius:20px;
+  background:var(--surface2); border:1px solid var(--border);
+  color:var(--muted); font-family:var(--font-main); font-size:12px;
+  font-weight:600; cursor:pointer; transition:all 0.2s;
+  letter-spacing:0.3px;
+}
+.filter-btn:hover, .filter-btn.active {
+  color:var(--accent); border-color:var(--accent);
+  background:rgba(0,229,255,0.08);
+}
+
+.btn-primary {
+  padding:11px 24px; border-radius:var(--radius);
+  background:var(--accent); border:none;
+  color:#000; font-family:var(--font-main);
+  font-size:13px; font-weight:700; cursor:pointer;
+  transition:all 0.2s; letter-spacing:0.5px;
+  box-shadow: var(--glow-cyan);
+}
+.btn-primary:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.btn-primary:active { transform:translateY(0); }
+.btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+.btn-secondary {
+  padding:11px 24px; border-radius:var(--radius);
+  background:transparent; border:1px solid var(--border);
+  color:var(--text); font-family:var(--font-main);
+  font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s;
+}
+.btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ============================================================ TRANSACTION CARD */
+.txn-display {
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px;
+  margin-bottom:16px;
+}
+.txn-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0;
+  border-bottom:1px solid var(--border);
+  font-size:13px;
+}
+.txn-row:last-child { border-bottom:none; }
+.txn-label { color:var(--muted); font-family:var(--font-mono); font-size:11px; }
+.txn-value { color:var(--text); font-family:var(--font-mono); font-weight:700; }
+.true-fraud { color:var(--danger); }
+.true-legit { color:var(--safe); }
+
+.v-features-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px;
+}
+.v-chip {
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:4px; padding:6px 8px; text-align:center;
+}
+.v-chip-label { font-size:9px; color:var(--muted); font-family:var(--font-mono); }
+.v-chip-val { font-size:11px; color:var(--text); font-family:var(--font-mono); font-weight:700; }
+
+/* ============================================================ RESULT PANEL */
+.result-panel {
+  display:none; /* shown by JS */
+  border-radius:var(--radius);
+  overflow:hidden;
+  border:1px solid var(--border);
+  margin-top:20px;
+  animation: fadeUp 0.4s ease;
+}
+.result-panel.show { display:block; }
+
+.result-header {
+  padding:20px 24px;
+  display:flex; align-items:center; gap:16px;
+}
+.result-header.fraud  { background:rgba(255,59,92,0.12); border-bottom:1px solid rgba(255,59,92,0.2); }
+.result-header.legit  { background:rgba(0,230,118,0.08); border-bottom:1px solid rgba(0,230,118,0.2); }
+
+.result-icon { font-size:36px; }
+.result-decision {
+  font-size:24px; font-weight:800; letter-spacing:1px;
+}
+.result-decision.fraud { color:var(--danger); text-shadow:var(--glow-red); }
+.result-decision.legit { color:var(--safe); text-shadow:var(--glow-green); }
+.result-sub { font-size:12px; color:var(--muted); font-family:var(--font-mono); margin-top:4px; }
+
+.result-body { padding:20px 24px; background:var(--surface); }
+
+/* Probability meter */
+.prob-meter { margin-bottom:20px; }
+.prob-label {
+  display:flex; justify-content:space-between;
+  font-size:12px; color:var(--muted); font-family:var(--font-mono);
+  margin-bottom:8px;
+}
+.prob-track {
+  height:8px; background:var(--surface2);
+  border-radius:4px; overflow:hidden;
+  border:1px solid var(--border);
+}
+.prob-fill {
+  height:100%; border-radius:4px;
+  transition:width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+.prob-fill.fraud { background:linear-gradient(90deg,#ff3b5c,#ff6b8a); }
+.prob-fill.legit { background:linear-gradient(90deg,#00e676,#69ff9f); }
+
+/* Stats row */
+.stats-row { display:flex; gap:12px; margin-bottom:20px; }
+.stat-box {
+  flex:1; background:var(--surface2);
+  border:1px solid var(--border); border-radius:6px;
+  padding:12px; text-align:center;
+}
+.stat-val { font-size:18px; font-weight:800; font-family:var(--font-mono); }
+.stat-lbl { font-size:10px; color:var(--muted); margin-top:2px; letter-spacing:0.5px; text-transform:uppercase; }
+
+/* SHAP bars */
+.shap-title {
+  font-size:11px; color:var(--muted); text-transform:uppercase;
+  letter-spacing:1px; margin-bottom:12px; font-weight:700;
+}
+.shap-row { margin-bottom:10px; }
+.shap-meta {
+  display:flex; justify-content:space-between;
+  font-size:11px; font-family:var(--font-mono); margin-bottom:4px;
+}
+.shap-feat { color:var(--text); }
+.shap-val-text { color:var(--accent); }
+.shap-track {
+  height:6px; background:var(--surface2);
+  border-radius:3px; overflow:hidden; border:1px solid var(--border);
+}
+.shap-fill {
+  height:100%; border-radius:3px;
+  background:linear-gradient(90deg, var(--accent), #0099cc);
+  transition:width 0.8s ease;
+}
+
+/* Recommendation badge */
+.recommendation {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 18px; border-radius:6px; margin-top:16px;
+  font-size:13px; font-weight:700; letter-spacing:0.5px;
+}
+.recommendation.block  { background:rgba(255,59,92,0.1); border:1px solid rgba(255,59,92,0.3); color:var(--danger); }
+.recommendation.review { background:rgba(255,179,0,0.1); border:1px solid rgba(255,179,0,0.3); color:var(--warn); }
+.recommendation.approve{ background:rgba(0,230,118,0.08); border:1px solid rgba(0,230,118,0.2); color:var(--safe); }
+
+/* ============================================================ BULK */
+.bulk-dropzone {
+  border:2px dashed var(--border);
+  border-radius:var(--radius); padding:40px;
+  text-align:center; cursor:pointer;
+  transition:all 0.2s; margin-bottom:16px;
+}
+.bulk-dropzone:hover, .bulk-dropzone.drag { border-color:var(--accent); background:rgba(0,229,255,0.04); }
+.drop-icon { font-size:40px; margin-bottom:12px; }
+.drop-title { font-size:16px; font-weight:700; margin-bottom:6px; }
+.drop-sub { font-size:12px; color:var(--muted); font-family:var(--font-mono); }
+
+.bulk-summary {
+  display:none; margin-top:20px; animation:fadeUp 0.4s ease;
+}
+.bulk-summary.show { display:block; }
+
+.summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.sum-card {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px; text-align:center;
+}
+.sum-val { font-size:28px; font-weight:800; font-family:var(--font-mono); }
+.sum-val.danger { color:var(--danger); }
+.sum-val.safe   { color:var(--safe); }
+.sum-val.accent { color:var(--accent); }
+.sum-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+
+.risk-bar-section { margin-bottom:20px; }
+.risk-bar-row { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+.risk-bar-label { width:80px; font-size:11px; font-family:var(--font-mono); color:var(--muted); }
+.risk-bar-track { flex:1; height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+.risk-bar-fill { height:100%; border-radius:4px; }
+.risk-bar-fill.high   { background:var(--danger); }
+.risk-bar-fill.medium { background:var(--warn); }
+.risk-bar-fill.low    { background:var(--safe); }
+.risk-bar-count { width:40px; font-size:11px; font-family:var(--font-mono); color:var(--text); text-align:right; }
+
+.bulk-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+.bulk-table { width:100%; border-collapse:collapse; font-size:12px; font-family:var(--font-mono); }
+.bulk-table th {
+  padding:10px 14px; text-align:left;
+  background:var(--surface2); color:var(--muted);
+  font-size:10px; text-transform:uppercase; letter-spacing:0.5px;
+  border-bottom:1px solid var(--border);
+}
+.bulk-table td { padding:10px 14px; border-bottom:1px solid var(--border); color:var(--text); }
+.bulk-table tr:last-child td { border-bottom:none; }
+.bulk-table tr:hover td { background:var(--surface2); }
+.badge {
+  padding:3px 10px; border-radius:10px; font-size:10px; font-weight:700;
+  letter-spacing:0.5px;
+}
+.badge.fraud  { background:rgba(255,59,92,0.15); color:var(--danger); border:1px solid rgba(255,59,92,0.3); }
+.badge.legit  { background:rgba(0,230,118,0.1);  color:var(--safe);   border:1px solid rgba(0,230,118,0.2); }
+.badge.high   { background:rgba(255,59,92,0.1);  color:var(--danger); }
+.badge.medium { background:rgba(255,179,0,0.1);  color:var(--warn); }
+.badge.low    { background:rgba(0,230,118,0.08); color:var(--safe); }
+
+/* ============================================================ MODEL STATS */
+.perf-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+.perf-card {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:20px; text-align:center;
+}
+.perf-val { font-size:36px; font-weight:800; font-family:var(--font-mono); color:var(--accent); }
+.perf-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:6px; }
+
+.feat-imp-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.feat-rank { width:20px; font-size:11px; color:var(--muted); font-family:var(--font-mono); text-align:right; }
+.feat-name { width:60px; font-size:12px; font-family:var(--font-mono); color:var(--text); }
+.feat-bar-track { flex:1; height:6px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+.feat-bar-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--accent),#0099cc); }
+.feat-imp-val { width:50px; font-size:11px; font-family:var(--font-mono); color:var(--muted); text-align:right; }
+
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.info-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.info-row:last-child { border-bottom:none; }
+.info-key { color:var(--muted); font-family:var(--font-mono); }
+.info-val { color:var(--text); font-weight:700; font-family:var(--font-mono); }
+
+/* ============================================================ LOADER */
+.loader { display:none; text-align:center; padding:30px; }
+.loader.show { display:block; }
+.spinner {
+  width:32px; height:32px; border-radius:50%;
+  border:2px solid var(--border);
+  border-top-color:var(--accent);
+  animation:spin 0.8s linear infinite; margin:0 auto 12px;
+}
+.loader-text { font-size:12px; color:var(--muted); font-family:var(--font-mono); }
+
+/* ============================================================ ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes pulse-green {
+  0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(0,230,118,0.4); }
+  50%      { opacity:0.8; box-shadow:0 0 0 5px rgba(0,230,118,0); }
+}
+
+/* ============================================================ TOAST */
+.toast {
+  position:fixed; bottom:24px; right:24px; z-index:100;
+  padding:12px 20px; border-radius:var(--radius);
+  background:var(--surface2); border:1px solid var(--border);
+  font-size:13px; font-family:var(--font-mono);
+  animation:fadeUp 0.3s ease; display:none;
+}
+.toast.show { display:block; }
+.toast.error   { border-color:var(--danger); color:var(--danger); }
+.toast.success { border-color:var(--safe);   color:var(--safe); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">🔍</div>
+  <div class="header-title">
+    <h1>Fraud Detection System</h1>
+    <p>Weighted RF Ensemble · Precision 92.4% · Recall 86.7%</p>
+  </div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    MODEL ONLINE
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('single', event)">Single Prediction</button>
+  <button class="tab-btn" onclick="switchTab('bulk', event)">Bulk Prediction</button>
+  <button class="tab-btn" onclick="switchTab('browser', event)">Dataset Browser</button>
+  <button class="tab-btn" onclick="switchTab('stats', event)" id="statsTab">Model Stats</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: SINGLE -->
+<div class="tab-panel active" id="tab-single">
+  <div class="two-col">
+
+    <!-- LEFT: Transaction Selector -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📋</div>
+        <h2>Transaction Input</h2>
+      </div>
+
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter(this,'all')">All</button>
+        <button class="filter-btn" onclick="setFilter(this,'fraud')">Fraud Sample</button>
+        <button class="filter-btn" onclick="setFilter(this,'legitimate')">Legit Sample</button>
+      </div>
+
+      <button class="btn-primary" style="width:100%;margin-bottom:16px" onclick="fetchTransaction()">
+        🔄 Fetch Transaction from Dataset
+      </button>
+
+      <div id="txnDisplay" class="txn-display" style="display:none">
+        <div class="txn-row">
+          <span class="txn-label">TRANSACTION ID</span>
+          <span class="txn-value" id="txnId">—</span>
+        </div>
+        <div class="txn-row">
+          <span class="txn-label">AMOUNT</span>
+          <span class="txn-value" id="txnAmount">—</span>
+        </div>
+        <div class="txn-row">
+          <span class="txn-label">TIME</span>
+          <span class="txn-value" id="txnTime">—</span>
+        </div>
+        <div class="txn-row">
+          <span class="txn-label">HOUR OF DAY</span>
+          <span class="txn-value" id="txnHour">—</span>
+        </div>
+        <div class="txn-row">
+          <span class="txn-label">TRUE LABEL</span>
+          <span class="txn-value" id="txnTrue">—</span>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="txn-label" style="margin-bottom:8px">V-FEATURES (PCA TRANSFORMED)</div>
+          <div class="v-features-grid" id="vFeaturesGrid"></div>
+        </div>
+      </div>
+
+      <div id="noTxn" style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
+        Click "Fetch Transaction" to load a sample
+      </div>
+    </div>
+
+    <!-- RIGHT: Actions + Result -->
+    <div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-icon">⚡</div>
+          <h2>Run Prediction</h2>
+        </div>
+
+        <button class="btn-primary" id="predictBtn"
+          style="width:100%;font-size:15px;padding:14px"
+          onclick="runPrediction()" disabled>
+          🔍 Analyze Transaction
+        </button>
+
+        <div style="margin-top:12px;text-align:center;font-size:11px;color:var(--muted);font-family:var(--font-mono)">
+          Threshold: 0.30 · Weighted RF Ensemble
+        </div>
+      </div>
+
+      <!-- Loader -->
+      <div class="loader" id="singleLoader">
+        <div class="spinner"></div>
+        <div class="loader-text">Running ensemble prediction...</div>
+      </div>
+
+      <!-- Result Panel -->
+      <div class="result-panel" id="resultPanel">
+        <div class="result-header" id="resultHeader">
+          <div class="result-icon" id="resultIcon"></div>
+          <div>
+            <div class="result-decision" id="resultDecision"></div>
+            <div class="result-sub" id="resultSub"></div>
+          </div>
+        </div>
+        <div class="result-body">
+          <!-- Probability meter -->
+          <div class="prob-meter">
+            <div class="prob-label">
+              <span>FRAUD PROBABILITY</span>
+              <span id="probPct">—</span>
+            </div>
+            <div class="prob-track">
+              <div class="prob-fill" id="probFill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Stats row -->
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-val" id="statProb">—</div>
+              <div class="stat-lbl">Probability</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statLatency">—</div>
+              <div class="stat-lbl">Latency (ms)</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statThresh">0.30</div>
+              <div class="stat-lbl">Threshold</div>
+            </div>
+          </div>
+
+          <!-- SHAP explanation -->
+          <div class="shap-title">🔬 Top Fraud Indicators (SHAP)</div>
+          <div id="shapRows"></div>
+
+          <!-- Recommendation -->
+          <div id="recommend"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ============================================================ TAB 2: BULK -->
+<div class="tab-panel" id="tab-bulk">
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">
+      <div class="card-icon">📦</div>
+      <h2>Bulk Prediction</h2>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <button class="btn-secondary" onclick="downloadTemplate('fraud')">
+        📥 Download Fraud Sample CSV
+      </button>
+      <button class="btn-secondary" onclick="downloadTemplate('legitimate')">
+        📥 Download Legit Sample CSV
+      </button>
+    </div>
+
+    <div class="bulk-dropzone" id="dropzone"
+      onclick="document.getElementById('csvFile').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <div class="drop-icon">📂</div>
+      <div class="drop-title">Drop CSV file here or click to browse</div>
+      <div class="drop-sub">CSV must match the sample template format</div>
+    </div>
+    <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleFile(event)">
+
+    <div style="text-align:center;color:var(--muted);font-size:12px;margin-bottom:16px">— OR —</div>
+
+    <button class="btn-primary" onclick="runBulkFromDataset()">
+      ⚡ Run Bulk on 200 Random Transactions
+    </button>
+  </div>
+
+  <div class="loader" id="bulkLoader">
+    <div class="spinner"></div>
+    <div class="loader-text">Processing transactions...</div>
+  </div>
+
+  <div class="bulk-summary" id="bulkSummary">
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <div class="card-icon">📊</div>
+        <h2>Analysis Summary</h2>
+      </div>
+
+      <div class="summary-grid">
+        <div class="sum-card">
+          <div class="sum-val accent" id="sumTotal">—</div>
+          <div class="sum-lbl">Total</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val danger" id="sumFraud">—</div>
+          <div class="sum-lbl">Fraud Detected</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val safe" id="sumLegit">—</div>
+          <div class="sum-lbl">Legitimate</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val" id="sumPct" style="color:var(--warn)">—</div>
+          <div class="sum-lbl">Fraud Rate</div>
+        </div>
+      </div>
+
+      <div class="risk-bar-section">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:700">Risk Distribution</div>
+        <div class="risk-bar-row">
+          <div class="risk-bar-label">HIGH</div>
+          <div class="risk-bar-track"><div class="risk-bar-fill high" id="riskHigh" style="width:0%"></div></div>
+          <div class="risk-bar-count" id="riskHighCount">0</div>
+        </div>
+        <div class="risk-bar-row">
+          <div class="risk-bar-label">MEDIUM</div>
+          <div class="risk-bar-track"><div class="risk-bar-fill medium" id="riskMed" style="width:0%"></div></div>
+          <div class="risk-bar-count" id="riskMedCount">0</div>
+        </div>
+        <div class="risk-bar-row">
+          <div class="risk-bar-label">LOW</div>
+          <div class="risk-bar-track"><div class="risk-bar-fill low" id="riskLow" style="width:0%"></div></div>
+          <div class="risk-bar-count" id="riskLowCount">0</div>
+        </div>
+      </div>
+
+      <button class="btn-secondary" onclick="downloadResults()" style="margin-top:4px">
+        📥 Download Results CSV
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📋</div>
+        <h2>Transaction Results</h2>
+      </div>
+      <div class="bulk-table-wrap">
+        <table class="bulk-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Decision</th>
+              <th>Probability</th>
+              <th>Risk Level</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="bulkTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================ TAB 3: DATASET BROWSER -->
+<div class="tab-panel" id="tab-browser">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🗃️</div>
+      <h2>Dataset Browser</h2>
+    </div>
+
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setBrowserFilter(this,'all')">All Transactions</button>
+      <button class="filter-btn" onclick="setBrowserFilter(this,'fraud')">Fraud Only</button>
+      <button class="filter-btn" onclick="setBrowserFilter(this,'legitimate')">Legitimate Only</button>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:20px">
+      <button class="btn-primary" onclick="loadBrowserBatch()">🔄 Load Transactions</button>
+      <button class="btn-secondary" onclick="loadBrowserBatch()">Next Batch →</button>
+    </div>
+
+    <div id="browserGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+  </div>
+</div>
+
+
+<!-- ============================================================ TAB 4: MODEL STATS -->
+<div class="tab-panel" id="tab-stats">
+  <div class="two-col" style="margin-bottom:20px">
+
+    <!-- Performance -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🎯</div>
+        <h2>Performance Metrics</h2>
+      </div>
+      <div class="perf-grid">
+        <div class="perf-card">
+          <div class="perf-val" id="sPrecision">—</div>
+          <div class="perf-lbl">Precision</div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-val" id="sRecall">—</div>
+          <div class="perf-lbl">Recall</div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-val" id="sF1">—</div>
+          <div class="perf-lbl">F1 Score</div>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div>
+          <div class="info-row"><span class="info-key">Algorithm</span><span class="info-val" id="sAlgo">—</span></div>
+          <div class="info-row"><span class="info-key">Threshold</span><span class="info-val" id="sThresh">—</span></div>
+          <div class="info-row"><span class="info-key">Features</span><span class="info-val">30</span></div>
+        </div>
+        <div>
+          <div class="info-row"><span class="info-key">RF W=10</span><span class="info-val" id="sW10">—</span></div>
+          <div class="info-row"><span class="info-key">RF W=50</span><span class="info-val" id="sW50">—</span></div>
+          <div class="info-row"><span class="info-key">RF W=200</span><span class="info-val" id="sW200">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dataset Info -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📊</div>
+        <h2>Dataset Information</h2>
+      </div>
+      <div style="margin-bottom:20px">
+        <div class="info-row"><span class="info-key">Total Transactions</span><span class="info-val" id="dTotal">—</span></div>
+        <div class="info-row"><span class="info-key">Fraud Transactions</span><span class="info-val" id="dFraud" style="color:var(--danger)">—</span></div>
+        <div class="info-row"><span class="info-key">Fraud Rate</span><span class="info-val" id="dRate">—</span></div>
+      </div>
+      <div class="shap-title">IMBALANCE RATIO</div>
+      <div class="prob-track" style="height:12px;margin-top:8px">
+        <div class="prob-fill legit" id="imbalanceBar" style="width:99.83%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;font-family:var(--font-mono);color:var(--muted)">
+        <span id="legitPct">—</span><span id="fraudPct" style="color:var(--danger)">—</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Feature Importance -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔬</div>
+      <h2>Feature Importance (RF W=10)</h2>
+    </div>
+    <div id="featImpChart"></div>
+  </div>
+</div>
+
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let currentFilter   = 'all';
+let browserFilter   = 'all';
+let currentTxn      = null;
+let bulkResults     = null;
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(name, e) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if(e) e.target.classList.add('active');
+  if (name === 'stats') loadModelStats();
+}
+
+// ============================================================
+// FILTER
+// ============================================================
+function setFilter(btn, val) {
+  currentFilter = val;
+  document.querySelectorAll('#tab-single .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function setBrowserFilter(btn, val) {
+  browserFilter = val;
+  document.querySelectorAll('#tab-browser .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ============================================================
+// FETCH TRANSACTION
+// ============================================================
+async function fetchTransaction() {
+  showToast('Fetching transaction...', 'success');
+  try {
+    const res  = await fetch(`/get_transaction?filter=${currentFilter}`);
+    const data = await res.json();
+    currentTxn = data;
+    renderTxn(data);
+    document.getElementById('predictBtn').disabled = false;
+    document.getElementById('resultPanel').classList.remove('show');
+  } catch(e) {
+    showToast('Failed to fetch transaction', 'error');
+  }
+}
+
+function renderTxn(data) {
+  document.getElementById('noTxn').style.display = 'none';
+  document.getElementById('txnDisplay').style.display = 'block';
+  document.getElementById('txnId').textContent     = '#' + data.transaction_id;
+  document.getElementById('txnAmount').textContent = '$' + data.amount.toFixed(2);
+  document.getElementById('txnTime').textContent   = data.time.toLocaleString() + 's';
+  document.getElementById('txnHour').textContent   = Math.floor((data.time / 3600) % 24) + ':00';
+
+  const trueEl = document.getElementById('txnTrue');
+  if (data.true_label === 1) {
+    trueEl.textContent  = '🚨 FRAUD';
+    trueEl.className    = 'txn-value true-fraud';
+  } else {
+    trueEl.textContent  = '✅ LEGITIMATE';
+    trueEl.className    = 'txn-value true-legit';
+  }
+
+  // V-features grid (show top 8 key V-features)
+  const keyFeats = ['V14','V17','V12','V10','V4','V11','V3','V7'];
+  const grid = document.getElementById('vFeaturesGrid');
+  grid.innerHTML = '';
+  keyFeats.forEach(f => {
+    if (data.feature_data[f] !== undefined) {
+      const val = data.feature_data[f];
+      const chip = document.createElement('div');
+      chip.className = 'v-chip';
+      chip.innerHTML = `<div class="v-chip-label">${f}</div>
+                        <div class="v-chip-val">${val.toFixed(3)}</div>`;
+      grid.appendChild(chip);
+    }
+  });
+}
+
+// ============================================================
+// SINGLE PREDICTION
+// ============================================================
+async function runPrediction() {
+  if (!currentTxn) { showToast('Please fetch a transaction first', 'error'); return; }
+
+  const loader = document.getElementById('singleLoader');
+  const panel  = document.getElementById('resultPanel');
+  loader.classList.add('show');
+  panel.classList.remove('show');
+
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        feature_data: currentTxn.feature_data,
+        amount:       currentTxn.amount,
+        time:         currentTxn.time,
+        true_label:   currentTxn.true_label
+      })
+    });
+    const data = await res.json();
+    loader.classList.remove('show');
+    renderResult(data);
+  } catch(e) {
+    loader.classList.remove('show');
+    showToast('Prediction failed: ' + e.message, 'error');
+  }
+}
+
+function renderResult(data) {
+  const panel    = document.getElementById('resultPanel');
+  const isFraud  = data.decision === 'FRAUD';
+
+  // Header
+  const header   = document.getElementById('resultHeader');
+  header.className = 'result-header ' + (isFraud ? 'fraud' : 'legit');
+  document.getElementById('resultIcon').textContent      = isFraud ? '🚨' : '✅';
+  const decEl    = document.getElementById('resultDecision');
+  decEl.textContent  = data.decision;
+  decEl.className    = 'result-decision ' + (isFraud ? 'fraud' : 'legit');
+  document.getElementById('resultSub').textContent =
+    `Probability: ${data.probability_pct}%  ·  Threshold: ${(data.threshold*100).toFixed(0)}%`;
+
+  // Prob meter
+  const fill = document.getElementById('probFill');
+  fill.style.width   = data.probability_pct + '%';
+  fill.className     = 'prob-fill ' + (isFraud ? 'fraud' : 'legit');
+  document.getElementById('probPct').textContent = data.probability_pct + '%';
+
+  // Stats
+  document.getElementById('statProb').textContent    = data.probability_pct + '%';
+  document.getElementById('statLatency').textContent = data.latency_ms;
+
+  // SHAP bars
+  const shapContainer = document.getElementById('shapRows');
+  shapContainer.innerHTML = '';
+  const maxShap = Math.max(...data.shap_explanation.top_features.map(f => f.shap_value));
+  data.shap_explanation.top_features.forEach(feat => {
+    const pct  = maxShap > 0 ? (feat.shap_value / maxShap * 100) : 0;
+    const dir  = feat.direction === 'toward_fraud' ? '↑ fraud' : '↓ legit';
+    shapContainer.innerHTML += `
+      <div class="shap-row">
+        <div class="shap-meta">
+          <span class="shap-feat">${feat.feature} <span style="color:var(--muted)">(val: ${feat.raw_value})</span></span>
+          <span class="shap-val-text">+${(feat.shap_value*100).toFixed(1)}%  ${dir}</span>
+        </div>
+        <div class="shap-track"><div class="shap-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  });
+
+  // Recommendation
+  const recEl = document.getElementById('recommend');
+  const cls   = data.recommendation.includes('BLOCK')   ? 'block'  :
+                data.recommendation.includes('REVIEW')  ? 'review' : 'approve';
+  const icon  = cls === 'block' ? '🚫' : cls === 'review' ? '⚠️' : '✅';
+  recEl.innerHTML = `<div class="recommendation ${cls}">${icon} ${data.recommendation}</div>`;
+
+  panel.classList.add('show');
+}
+
+// ============================================================
+// BULK PREDICTION
+// ============================================================
+async function runBulkFromDataset() {
+  showLoader('bulkLoader', true);
+  hideBulkSummary();
+
+  // Fetch 200 random transactions
+  const promises = Array.from({length:200}, () =>
+    fetch('/get_transaction?filter=all').then(r => r.json())
+  );
+
+  try {
+    const txns = await Promise.all(promises);
+    const payload = txns.map(t => ({
+      feature_data: t.feature_data,
+      amount: t.amount,
+      time: t.time
+    }));
+
+    const res  = await fetch('/bulk_predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({transactions: payload})
+    });
+    const data = await res.json();
+    bulkResults = data;
+    showLoader('bulkLoader', false);
+    renderBulkResults(data);
+  } catch(e) {
+    showLoader('bulkLoader', false);
+    showToast('Bulk prediction failed', 'error');
+  }
+}
+
+function renderBulkResults(data) {
+  const s = data.summary;
+  document.getElementById('sumTotal').textContent = s.total_transactions;
+  document.getElementById('sumFraud').textContent = s.fraud_count;
+  document.getElementById('sumLegit').textContent = s.legitimate_count;
+  document.getElementById('sumPct').textContent   = s.fraud_percentage + '%';
+
+  const total = s.total_transactions;
+  const rd    = s.risk_distribution;
+  document.getElementById('riskHigh').style.width      = (rd.high_risk/total*100)+'%';
+  document.getElementById('riskMed').style.width       = (rd.medium_risk/total*100)+'%';
+  document.getElementById('riskLow').style.width       = (rd.low_risk/total*100)+'%';
+  document.getElementById('riskHighCount').textContent = rd.high_risk;
+  document.getElementById('riskMedCount').textContent  = rd.medium_risk;
+  document.getElementById('riskLowCount').textContent  = rd.low_risk;
+
+  // Table (show first 50)
+  const tbody = document.getElementById('bulkTableBody');
+  tbody.innerHTML = '';
+  data.transactions.slice(0,50).forEach(t => {
+    const isFraud = t.decision === 'FRAUD';
+    tbody.innerHTML += `
+      <tr>
+        <td>${t.id}</td>
+        <td><span class="badge ${isFraud?'fraud':'legit'}">${t.decision}</span></td>
+        <td style="color:${isFraud?'var(--danger)':'var(--safe)'}">${t.probability_pct}%</td>
+        <td><span class="badge ${t.risk_level.toLowerCase()}">${t.risk_level}</span></td>
+        <td>$${Number(t.amount).toFixed(2)}</td>
+      </tr>`;
+  });
+  if (data.transactions.length > 50) {
+    tbody.innerHTML += `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:11px">
+      Showing 50 of ${data.transactions.length} transactions</td></tr>`;
+  }
+
+  document.getElementById('bulkSummary').classList.add('show');
+}
+
+function hideBulkSummary() {
+  document.getElementById('bulkSummary').classList.remove('show');
+}
+
+// ============================================================
+// CSV HANDLING
+// ============================================================
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  showToast('Running bulk prediction on 200 random transactions...', 'success');
+  runBulkFromDataset();
+}
+
+function handleDrop(event) {
+  event.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  const file = event.dataTransfer.files[0];
+  if (file && file.name.endsWith('.csv')) {
+    showToast('CSV loaded: ' + file.name, 'success');
+    runBulkFromDataset();
+  }
+}
+
+function downloadTemplate(type) {
+  showToast('Fetching sample template...', 'success');
+  fetch(`/get_transaction?filter=${type}`)
+    .then(r => r.json())
+    .then(data => {
+      const headers = Object.keys(data.feature_data).join(',');
+      const values  = Object.values(data.feature_data).join(',');
+      const csv     = headers + '\n' + values;
+      const blob    = new Blob([csv], {type:'text/csv'});
+      const a       = document.createElement('a');
+      a.href        = URL.createObjectURL(blob);
+      a.download    = `sample_${type}_template.csv`;
+      a.click();
+    });
+}
+
+function downloadResults() {
+  if (!bulkResults) return;
+  const headers = 'id,decision,probability_pct,risk_level,amount';
+  const rows    = bulkResults.transactions.map(t =>
+    `${t.id},${t.decision},${t.probability_pct},${t.risk_level},${t.amount}`
+  ).join('\n');
+  const csv  = headers + '\n' + rows;
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'fraud_detection_results.csv';
+  a.click();
+  showToast('Results downloaded!', 'success');
+}
+
+// ============================================================
+// DATASET BROWSER
+// ============================================================
+async function loadBrowserBatch() {
+  const grid = document.getElementById('browserGrid');
+  grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner" style="margin:0 auto 12px"></div>Loading transactions...</div>';
+
+  const promises = Array.from({length:12}, () =>
+    fetch(`/get_transaction?filter=${browserFilter}`).then(r => r.json())
+  );
+
+  try {
+    const txns = await Promise.all(promises);
+    grid.innerHTML = '';
+    txns.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cursor = 'pointer';
+      card.style.transition = 'border-color 0.2s';
+      const isFraud = t.true_label === 1;
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">#${t.transaction_id}</span>
+          <span class="badge ${isFraud?'fraud':'legit'}">${isFraud?'FRAUD':'LEGIT'}</span>
+        </div>
+        <div class="txn-row">
+          <span class="txn-label">AMOUNT</span>
+          <span class="txn-value">$${t.amount.toFixed(2)}</span>
+        </div>
+        <div class="txn-row" style="border-bottom:none">
+          <span class="txn-label">TIME</span>
+          <span class="txn-value">${t.time.toLocaleString()}s</span>
+        </div>
+        <button class="btn-primary" style="width:100%;margin-top:14px;padding:8px;font-size:12px"
+          onclick='selectAndPredict(${JSON.stringify(t)})'>
+          Analyze This Transaction →
+        </button>`;
+      card.addEventListener('mouseenter', () => card.style.borderColor = 'var(--accent)');
+      card.addEventListener('mouseleave', () => card.style.borderColor = 'var(--border)');
+      grid.appendChild(card);
+    });
+  } catch(e) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Failed to load transactions</div>';
+  }
+}
+
+function selectAndPredict(txn) {
+  currentTxn = txn;
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-single').classList.add('active');
+  document.querySelectorAll('.tab-btn')[0].classList.add('active');
+  renderTxn(txn);
+  document.getElementById('predictBtn').disabled = false;
+  showToast('Transaction loaded — click Analyze!', 'success');
+  setTimeout(() => runPrediction(), 600);
+}
+
+// ============================================================
+// MODEL STATS
+// ============================================================
+async function loadModelStats() {
+  try {
+    const res  = await fetch('/model_stats');
+    const data = await res.json();
+
+    const p = data.performance;
+    document.getElementById('sPrecision').textContent = (p.precision*100).toFixed(1) + '%';
+    document.getElementById('sRecall').textContent    = (p.recall*100).toFixed(1) + '%';
+    document.getElementById('sF1').textContent        = (p.f1*100).toFixed(1) + '%';
+    document.getElementById('sAlgo').textContent      = 'RF Ensemble';
+    document.getElementById('sThresh').textContent    = p.threshold;
+
+    const w = data.ensemble_weights;
+    document.getElementById('sW10').textContent  = (w.RF_W10*100).toFixed(1)+'%';
+    document.getElementById('sW50').textContent  = (w.RF_W50*100).toFixed(1)+'%';
+    document.getElementById('sW200').textContent = (w.RF_W200*100).toFixed(1)+'%';
+
+    const d = data.dataset_info;
+    document.getElementById('dTotal').textContent = d.total_transactions.toLocaleString();
+    document.getElementById('dFraud').textContent = d.fraud_count.toLocaleString();
+    document.getElementById('dRate').textContent  = d.fraud_rate + '%';
+    document.getElementById('legitPct').textContent = (100 - d.fraud_rate).toFixed(2) + '% Legitimate';
+    document.getElementById('fraudPct').textContent = d.fraud_rate + '% Fraud';
+
+    // Feature importance bars
+    const chart = document.getElementById('featImpChart');
+    chart.innerHTML = '';
+    const maxImp = Math.max(...data.top_features.map(f => f.importance));
+    data.top_features.forEach((f, i) => {
+      const pct = (f.importance / maxImp * 100);
+      chart.innerHTML += `
+        <div class="feat-imp-row">
+          <div class="feat-rank">${i+1}</div>
+          <div class="feat-name">${f.feature}</div>
+          <div class="feat-bar-track">
+            <div class="feat-bar-fill" style="width:${pct}%"></div>
+          </div>
+          <div class="feat-imp-val">${f.importance.toFixed(4)}</div>
+        </div>`;
+    });
+  } catch(e) {
+    console.error('Stats load failed:', e);
+  }
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function showLoader(id, show) {
+  document.getElementById(id).classList[show?'add':'remove']('show');
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent  = msg;
+  t.className    = `toast show ${type}`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

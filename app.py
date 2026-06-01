@@ -8,71 +8,161 @@ import pickle
 import numpy as np
 import pandas as pd
 import time
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+import config
+
+# ============================================================
+# LOGGING SETUP
+# ============================================================
+def setup_logging():
+    """Configure logging to file and console."""
+    logger = logging.getLogger()
+    logger.setLevel(getattr(logging, config.LOG_LEVEL))
+    
+    # File handler with rotation
+    file_handler = RotatingFileHandler(
+        config.LOG_FILE,
+        maxBytes=10485760,  # 10MB
+        backupCount=5
+    )
+    file_handler.setLevel(getattr(logging, config.LOG_LEVEL))
+    file_handler.setFormatter(logging.Formatter(config.LOG_FORMAT))
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(getattr(logging, config.LOG_LEVEL))
+    console_handler.setFormatter(logging.Formatter(config.LOG_FORMAT))
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+logger = setup_logging()
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # ============================================================
 # LOAD MODEL ON STARTUP
 # ============================================================
-MODEL_PATH = 'Fraud_ensemble_model.pkl'
-DATA_PATH  = 'creditcard.csv'
-
-# Dataset statistics for engineered features
-AMOUNT_MEAN = 95.97
-AMOUNT_STD  = 213.40
-
-# Load model bundle
-with open(MODEL_PATH, 'rb') as f:
-    bundle = pickle.load(f)
-
-rf_w10    = bundle['rf_w10']
-rf_w50    = bundle['rf_w50']
-rf_w200   = bundle['rf_w200']
-Features  = bundle['Features']     # capital F — 30 feature names
-weights   = bundle['weights']
-THRESHOLD = bundle['threshold']    # 0.30
-
-# Model info (not in pkl — defined here)
-MODEL_INFO = {
-    'precision' : 0.9239,
-    'recall'    : 0.8673,
-    'f1'        : 0.8947,
-    'algorithm' : 'Weighted RF Ensemble (W=10, W=50, W=200)'
-}
-
-print(f"Model loaded! Features: {len(Features)}, Threshold: {THRESHOLD}")
+try:
+    with open(config.MODEL_PATH, 'rb') as f:
+        bundle = pickle.load(f)
+    
+    rf_w10 = bundle['rf_w10']
+    rf_w50 = bundle['rf_w50']
+    rf_w200 = bundle['rf_w200']
+    Features = bundle['Features']     # capital F — 30 feature names
+    weights = bundle['weights']
+    THRESHOLD = bundle['threshold']    # 0.30
+    
+    logger.info(f"Model loaded! Features: {len(Features)}, Threshold: {THRESHOLD}")
+except Exception as e:
+    logger.error(f"Failed to load model: {str(e)}")
+    raise
 
 # Load dataset for transaction browser
-df = pd.read_csv(DATA_PATH)
-df['amount_per_second'] = df['Amount'] / (df['Time'] + 1)
-df['amount_zscore']     = (df['Amount'] - AMOUNT_MEAN) / AMOUNT_STD
-print(f"Dataset loaded: {len(df)} transactions")
+try:
+    df = pd.read_csv(config.DATA_PATH)
+    df['amount_per_second'] = df['Amount'] / (df['Time'] + 1)
+    df['amount_zscore'] = (df['Amount'] - config.AMOUNT_MEAN) / config.AMOUNT_STD
+    logger.info(f"Dataset loaded: {len(df)} transactions")
+except Exception as e:
+    logger.error(f"Failed to load dataset: {str(e)}")
+    raise
 
 
 # ============================================================
-# HELPER FUNCTIONS
+# VALIDATION & HELPER FUNCTIONS
 # ============================================================
+
+def validate_feature_data(feature_data, required_features):
+    """
+    Validate that all required features are present and valid.
+    
+    Args:
+        feature_data (dict): Feature dictionary from request
+        required_features (list): List of required feature names
+        
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if not isinstance(feature_data, dict):
+        return False, "feature_data must be a dictionary"
+    
+    missing_features = set(required_features) - set(feature_data.keys())
+    if missing_features:
+        return False, f"Missing features: {', '.join(sorted(missing_features))}"
+    
+    for feat in required_features:
+        try:
+            val = float(feature_data[feat])
+            # Check if value is within reasonable range
+            if not (config.FEATURE_VALUE_RANGE[0] <= val <= config.FEATURE_VALUE_RANGE[1]):
+                logger.warning(f"Feature {feat} value {val} outside typical range")
+        except (ValueError, TypeError):
+            return False, f"Feature '{feat}' must be numeric, got {type(feature_data[feat]).__name__}"
+    
+    return True, None
+
+
+def validate_bulk_request(transactions):
+    """
+    Validate bulk prediction request.
+    
+    Args:
+        transactions (list): List of transaction dicts
+        
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if not isinstance(transactions, list):
+        return False, "transactions must be a list"
+    
+    if len(transactions) == 0:
+        return False, "transactions list cannot be empty"
+    
+    if len(transactions) > config.MAX_BULK_PREDICT_SIZE:
+        return False, f"Maximum {config.MAX_BULK_PREDICT_SIZE} transactions per request"
+    
+    return True, None
+
 
 def get_risk_level(prob):
-    if prob >= 0.70:
+    """Classify risk level based on probability."""
+    if prob >= config.HIGH_RISK_THRESHOLD:
         return 'HIGH'
-    elif prob >= 0.30:
+    elif prob >= config.MEDIUM_RISK_THRESHOLD:
         return 'MEDIUM'
     else:
         return 'LOW'
 
 
 def get_recommendation(prob):
-    if prob >= 0.70:
+    """Get recommendation based on fraud probability."""
+    if prob >= config.HIGH_RISK_THRESHOLD:
         return 'BLOCK TRANSACTION'
-    elif prob >= 0.30:
+    elif prob >= config.MEDIUM_RISK_THRESHOLD:
         return 'MANUAL REVIEW'
     else:
         return 'APPROVE TRANSACTION'
 
 
 def ensemble_predict_proba(X, feature_names=None):
+    """
+    Generate ensemble predictions from three weighted Random Forest models.
+    
+    Args:
+        X: Feature array or DataFrame
+        feature_names: List of feature names
+        
+    Returns:
+        numpy array: Fraud probabilities
+    """
     if feature_names is not None:
         X = pd.DataFrame(X, columns=feature_names)
     p10  = rf_w10.predict_proba(X)[:, 1]
@@ -87,6 +177,12 @@ def get_shap_explanation(X_row):
     """
     Approximate SHAP using RF W=10 feature importances.
     Returns top 3 features with direction and contribution.
+    
+    Args:
+        X_row: Single feature row as numpy array
+        
+    Returns:
+        dict: SHAP explanation with top features
     """
     importances = rf_w10.feature_importances_
     feat_imp = sorted(
@@ -95,22 +191,22 @@ def get_shap_explanation(X_row):
     )[:3]
 
     prob = ensemble_predict_proba(X_row, Features)[0]
-    base     = 0.0017   # Dataset fraud rate
+    base = config.BASE_FRAUD_RATE
 
     top_features = []
     for feat, imp in feat_imp:
         contribution = imp * (prob - base)
-        direction    = 'toward_fraud' if contribution > 0 else 'away_from_fraud'
+        direction = 'toward_fraud' if contribution > 0 else 'away_from_fraud'
         top_features.append({
-            'feature'   : feat,
+            'feature': feat,
             'shap_value': round(abs(contribution), 4),
-            'direction' : direction,
-            'raw_value' : round(float(X_row[0][Features.index(feat)]), 4)
+            'direction': direction,
+            'raw_value': round(float(X_row[0][Features.index(feat)]), 4)
         })
 
     return {
         'top_features': top_features,
-        'base_value'  : base
+        'base_value': base
     }
 
 
@@ -118,10 +214,29 @@ def get_shap_explanation(X_row):
 # ROUTES
 # ============================================================
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """
+    Health check endpoint for monitoring and load balancers.
+    Returns service status and basic info.
+    """
+    return jsonify({
+        'status': 'healthy',
+        'service': 'Fraud Detection API',
+        'version': config.API_VERSION,
+        'model_version': config.MODEL_VERSION,
+        'timestamp': time.time()
+    }), 200
+
+
 @app.route('/')
 def index():
     """Serve the frontend."""
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error serving index: {str(e)}")
+        return jsonify({'error': 'Failed to load frontend'}), 500
 
 
 # ------------------------------------------------------------
@@ -130,137 +245,204 @@ def index():
 # ------------------------------------------------------------
 @app.route('/get_transaction', methods=['GET'])
 def get_transaction():
-    filter_type = request.args.get('filter', 'all')
-    idx         = request.args.get('idx', None)
+    try:
+        filter_type = request.args.get('filter', 'all')
+        idx = request.args.get('idx', None)
+        
+        # Validate filter type
+        if filter_type not in config.VALID_FILTERS:
+            logger.warning(f"Invalid filter type: {filter_type}")
+            return jsonify({'error': f"Invalid filter. Must be one of {config.VALID_FILTERS}"}), 400
 
-    if idx is not None:
-        row = df.iloc[int(idx)]
-    else:
-        if filter_type == 'fraud':
-            row = df[df['Class'] == 1].sample(1).iloc[0]
-        elif filter_type == 'legitimate':
-            row = df[df['Class'] == 0].sample(1).iloc[0]
+        if idx is not None:
+            try:
+                idx = int(idx)
+                if idx < 0 or idx >= len(df):
+                    return jsonify({'error': f"Index {idx} out of range [0, {len(df)-1}]"}), 400
+                row = df.iloc[idx]
+            except ValueError:
+                return jsonify({'error': "Index must be an integer"}), 400
         else:
-            row = df.sample(1).iloc[0]
+            if filter_type == 'fraud':
+                fraud_df = df[df['Class'] == 1]
+                if fraud_df.empty:
+                    return jsonify({'error': 'No fraud transactions available'}), 404
+                row = fraud_df.sample(1).iloc[0]
+            elif filter_type == 'legitimate':
+                legit_df = df[df['Class'] == 0]
+                if legit_df.empty:
+                    return jsonify({'error': 'No legitimate transactions available'}), 404
+                row = legit_df.sample(1).iloc[0]
+            else:
+                row = df.sample(1).iloc[0]
 
-    # Build feature dict using correct Features key
-    feature_data = {feat: round(float(row[feat]), 6) for feat in Features}
-
-    return jsonify({
-        'transaction_id' : int(row.name),
-        'amount'         : round(float(row['Amount']), 2),
-        'time'           : round(float(row['Time']), 0),
-        'true_label'     : int(row['Class']),
-        'feature_data'   : feature_data
-    })
+        feature_data = {feat: round(float(row[feat]), 6) for feat in Features}
+        
+        response = {
+            'transaction_id': int(row.name),
+            'amount': round(float(row['Amount']), 2),
+            'time': round(float(row['Time']), 0),
+            'true_label': int(row['Class']),
+            'feature_data': feature_data
+        }
+        
+        logger.debug(f"Fetched transaction {int(row.name)}")
+        return jsonify(response), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_transaction: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ------------------------------------------------------------
 # POST /predict
-# Single transaction prediction
+# Single transaction prediction with validation
 # ------------------------------------------------------------
 @app.route('/predict', methods=['POST'])
 def predict():
     start = time.time()
-    data  = request.get_json()
-
+    
     try:
-        # Build feature array in correct order — no scaling
+        data = request.get_json()
+        
+        if not data:
+            logger.warning("Empty request body received")
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        # Validate feature_data presence
+        if 'feature_data' not in data:
+            return jsonify({'error': 'Missing required field: feature_data'}), 400
+        
+        # Validate feature data
+        is_valid, error_msg = validate_feature_data(data['feature_data'], Features)
+        if not is_valid:
+            logger.warning(f"Validation error: {error_msg}")
+            return jsonify({'error': error_msg}), 400
+        
+        # Build feature array in correct order
         X = np.array([[data['feature_data'][f] for f in Features]])
-
-        # Predict directly
+        
+        # Predict
         prob = float(ensemble_predict_proba(X, Features)[0])
-        decision  = 'FRAUD' if prob >= THRESHOLD else 'LEGITIMATE'
-        risk      = get_risk_level(prob)
+        decision = 'FRAUD' if prob >= THRESHOLD else 'LEGITIMATE'
+        risk = get_risk_level(prob)
         recommend = get_recommendation(prob)
         shap_info = get_shap_explanation(X)
-
+        
         latency_ms = round((time.time() - start) * 1000, 2)
-
-        return jsonify({
-            'decision'        : decision,
-            'probability'     : round(prob, 4),
-            'probability_pct' : round(prob * 100, 2),
-            'confidence'      : risk,
-            'threshold'       : THRESHOLD,
-            'risk_level'      : risk,
-            'recommendation'  : recommend,
-            'transaction'     : {
-                'amount'     : data.get('amount', 0),
-                'time'       : data.get('time', 0),
+        
+        response = {
+            'decision': decision,
+            'probability': round(prob, 4),
+            'probability_pct': round(prob * 100, 2),
+            'confidence': risk,
+            'threshold': THRESHOLD,
+            'risk_level': risk,
+            'recommendation': recommend,
+            'transaction': {
+                'amount': data.get('amount', 0),
+                'time': data.get('time', 0),
                 'hour_of_day': int(data.get('time', 0) // 3600 % 24),
-                'true_label' : data.get('true_label', -1)
+                'true_label': data.get('true_label', -1)
             },
             'shap_explanation': shap_info,
-            'latency_ms'      : latency_ms,
-            'model_version'   : 'Weighted RF Ensemble v1.0'
-        })
+            'latency_ms': latency_ms,
+            'model_version': config.MODEL_VERSION
+        }
+        
+        logger.info(f"Prediction: {decision} (prob={prob:.4f}, latency={latency_ms}ms)")
+        return jsonify(response), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error in predict: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ------------------------------------------------------------
 # POST /bulk_predict
-# Predict multiple transactions at once
+# Predict multiple transactions with validation
 # ------------------------------------------------------------
 @app.route('/bulk_predict', methods=['POST'])
 def bulk_predict():
     start = time.time()
-    data  = request.get_json()
-
+    
     try:
+        data = request.get_json()
+        
+        if not data or 'transactions' not in data:
+            logger.warning("Invalid bulk request format")
+            return jsonify({'error': 'Request must contain transactions array'}), 400
+        
         transactions = data['transactions']
-
-        # Build matrix — no scaling
+        
+        # Validate bulk request
+        is_valid, error_msg = validate_bulk_request(transactions)
+        if not is_valid:
+            logger.warning(f"Bulk validation error: {error_msg}")
+            return jsonify({'error': error_msg}), 400
+        
+        # Validate all transactions
+        for i, t in enumerate(transactions):
+            if 'feature_data' not in t:
+                return jsonify({'error': f"Transaction {i} missing feature_data"}), 400
+            
+            is_valid, error_msg = validate_feature_data(t['feature_data'], Features)
+            if not is_valid:
+                return jsonify({'error': f"Transaction {i}: {error_msg}"}), 400
+        
+        # Build matrix
         X = np.array([
             [t['feature_data'][f] for f in Features]
             for t in transactions
         ])
-
+        
         probs = ensemble_predict_proba(X, Features)
         decisions = ['FRAUD' if p >= THRESHOLD else 'LEGITIMATE' for p in probs]
-
+        
         # Per-transaction results
         results = []
         for i, (prob, decision) in enumerate(zip(probs, decisions)):
             results.append({
-                'id'             : i + 1,
-                'decision'       : decision,
-                'probability'    : round(float(prob), 4),
+                'id': i + 1,
+                'decision': decision,
+                'probability': round(float(prob), 4),
                 'probability_pct': round(float(prob) * 100, 2),
-                'risk_level'     : get_risk_level(float(prob)),
-                'amount'         : transactions[i].get('amount', 0)
+                'risk_level': get_risk_level(float(prob)),
+                'amount': transactions[i].get('amount', 0)
             })
-
+        
         # Summary stats
         fraud_count = sum(1 for d in decisions if d == 'FRAUD')
         legit_count = len(decisions) - fraud_count
-        high_risk   = sum(1 for p in probs if p >= 0.70)
-        medium_risk = sum(1 for p in probs if 0.30 <= p < 0.70)
-        low_risk    = sum(1 for p in probs if p < 0.30)
-        latency_ms  = round((time.time() - start) * 1000, 2)
-
-        return jsonify({
+        high_risk = sum(1 for p in probs if p >= config.HIGH_RISK_THRESHOLD)
+        medium_risk = sum(1 for p in probs if config.MEDIUM_RISK_THRESHOLD <= p < config.HIGH_RISK_THRESHOLD)
+        low_risk = sum(1 for p in probs if p < config.MEDIUM_RISK_THRESHOLD)
+        latency_ms = round((time.time() - start) * 1000, 2)
+        
+        response = {
             'summary': {
-                'total_transactions'       : len(transactions),
-                'fraud_count'              : fraud_count,
-                'legitimate_count'         : legit_count,
-                'fraud_percentage'         : round(fraud_count / len(transactions) * 100, 2),
+                'total_transactions': len(transactions),
+                'fraud_count': fraud_count,
+                'legitimate_count': legit_count,
+                'fraud_percentage': round(fraud_count / len(transactions) * 100, 2),
                 'average_fraud_probability': round(float(np.mean(probs)) * 100, 2),
-                'risk_distribution'        : {
-                    'high_risk'  : high_risk,
+                'risk_distribution': {
+                    'high_risk': high_risk,
                     'medium_risk': medium_risk,
-                    'low_risk'   : low_risk
+                    'low_risk': low_risk
                 }
             },
-            'transactions'      : results,
+            'transactions': results,
             'processing_time_ms': latency_ms,
-            'model_version'     : 'Weighted RF Ensemble v1.0'
-        })
+            'model_version': config.MODEL_VERSION
+        }
+        
+        logger.info(f"Bulk prediction: {len(transactions)} transactions, {fraud_count} fraud, latency={latency_ms}ms")
+        return jsonify(response), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error in bulk_predict: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ------------------------------------------------------------
@@ -269,39 +451,75 @@ def bulk_predict():
 # ------------------------------------------------------------
 @app.route('/model_stats', methods=['GET'])
 def model_stats():
-    feat_imp = sorted(
-        zip(Features, rf_w10.feature_importances_.tolist()),
-        key=lambda x: x[1], reverse=True
-    )
-    return jsonify({
-        'performance': {
-            'precision' : MODEL_INFO['precision'],
-            'recall'    : MODEL_INFO['recall'],
-            'f1'        : MODEL_INFO['f1'],
-            'threshold' : THRESHOLD,
-            'algorithm' : MODEL_INFO['algorithm']
-        },
-        'top_features': [
-            {'feature': f, 'importance': round(imp, 4)}
-            for f, imp in feat_imp[:10]
-        ],
-        'dataset_info': {
-            # Hardcode REAL dataset stats, not demo CSV stats
-            'total_transactions': 284807,
-            'fraud_count'       : 492,
-            'fraud_rate'        : 0.1727
-        },
-        'ensemble_weights': {
-            'RF_W10' : round(weights['w10'],  4),
-            'RF_W50' : round(weights['w50'],  4),
-            'RF_W200': round(weights['w200'], 4)
+    try:
+        feat_imp = sorted(
+            zip(Features, rf_w10.feature_importances_.tolist()),
+            key=lambda x: x[1], reverse=True
+        )
+        
+        response = {
+            'performance': {
+                'precision': config.MODEL_INFO['precision'],
+                'recall': config.MODEL_INFO['recall'],
+                'f1': config.MODEL_INFO['f1'],
+                'threshold': THRESHOLD,
+                'algorithm': config.MODEL_INFO['algorithm']
+            },
+            'top_features': [
+                {'feature': f, 'importance': round(imp, 4)}
+                for f, imp in feat_imp[:10]
+            ],
+            'dataset_info': config.DATASET_INFO,
+            'ensemble_weights': {
+                'RF_W10': round(weights['w10'], 4),
+                'RF_W50': round(weights['w50'], 4),
+                'RF_W200': round(weights['w200'], 4)
+            }
         }
-    })
+        
+        logger.debug("Model stats requested")
+        return jsonify(response), 200
+    
+    except Exception as e:
+        logger.error(f"Error in model_stats: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+# ============================================================
+# ERROR HANDLERS
+# ============================================================
+
+@app.errorhandler(404)
+def not_found(e):
+    """Handle 404 errors."""
+    logger.warning(f"404 error: {request.path}")
+    return jsonify({'error': 'Endpoint not found'}), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    """Handle 405 errors."""
+    logger.warning(f"405 error: {request.method} {request.path}")
+    return jsonify({'error': 'Method not allowed'}), 405
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    """Handle 500 errors."""
+    logger.error(f"500 error: {str(e)}")
+    return jsonify({'error': 'Internal server error'}), 500
 
 
 # ============================================================
 # RUN
 # ============================================================
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    logger.info(f"Starting Fraud Detection API v{config.API_VERSION}")
+    logger.info(f"Environment: {config.ENV}")
+    logger.info(f"Server: {config.HOST}:{config.PORT}")
+    
+    app.run(
+        host=config.HOST,
+        port=config.PORT,
+        debug=config.DEBUG
+    )

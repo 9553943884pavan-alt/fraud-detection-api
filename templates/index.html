@@ -94,6 +94,19 @@ header {
   animation: pulse-green 2s ease-in-out infinite;
 }
 
+/* Header Stats */
+.header-stat {
+  display:flex; flex-direction:column; align-items:center;
+}
+.header-stat-val {
+  font-size:14px; font-weight:800; font-family:var(--font-mono);
+  color:var(--accent);
+}
+.header-stat-lbl {
+  font-size:10px; color:var(--muted); font-family:var(--font-mono);
+  letter-spacing:0.5px;
+}
+
 /* ============================================================ TABS */
 .tabs-bar {
   position:relative; z-index:10;
@@ -272,15 +285,54 @@ main {
 .prob-fill.fraud { background:linear-gradient(90deg,#ff3b5c,#ff6b8a); }
 .prob-fill.legit { background:linear-gradient(90deg,#00e676,#69ff9f); }
 
+/* Circular Gauge */
+.gauge-container {
+  display:flex; justify-content:center; margin:20px 0;
+  position:relative;
+}
+.gauge-svg {
+  width:200px; height:200px; filter: drop-shadow(0 0 15px rgba(0,229,255,0.2));
+}
+.gauge-center {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  position:absolute; width:100%; height:100%; top:0; left:0;
+}
+.gauge-value {
+  font-size:42px; font-weight:800; font-family:var(--font-mono);
+}
+.gauge-label {
+  font-size:11px; color:var(--muted); font-family:var(--font-mono);
+  text-transform:uppercase; letter-spacing:0.5px;
+}
+
 /* Stats row */
 .stats-row { display:flex; gap:12px; margin-bottom:20px; }
 .stat-box {
   flex:1; background:var(--surface2);
   border:1px solid var(--border); border-radius:6px;
   padding:12px; text-align:center;
+  transition:all 0.3s;
+  position:relative;
+  overflow:hidden;
 }
-.stat-val { font-size:18px; font-weight:800; font-family:var(--font-mono); }
+.stat-box::before {
+  content:'';
+  position:absolute; top:0; left:0;
+  width:100%; height:2px;
+  background:linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation:slideAcross 2s ease-in-out infinite;
+}
+.stat-val { 
+  font-size:18px; font-weight:800; font-family:var(--font-mono);
+  animation:countUp 0.6s ease;
+}
 .stat-lbl { font-size:10px; color:var(--muted); margin-top:2px; letter-spacing:0.5px; text-transform:uppercase; }
+
+@keyframes slideAcross {
+  0% { transform:translateX(-100%); }
+  50% { transform:translateX(100%); }
+  100% { transform:translateX(100%); }
+}
 
 /* SHAP bars */
 .shap-title {
@@ -309,10 +361,35 @@ main {
   display:inline-flex; align-items:center; gap:8px;
   padding:10px 18px; border-radius:6px; margin-top:16px;
   font-size:13px; font-weight:700; letter-spacing:0.5px;
+  animation:slideIn 0.4s ease;
 }
-.recommendation.block  { background:rgba(255,59,92,0.1); border:1px solid rgba(255,59,92,0.3); color:var(--danger); }
-.recommendation.review { background:rgba(255,179,0,0.1); border:1px solid rgba(255,179,0,0.3); color:var(--warn); }
-.recommendation.approve{ background:rgba(0,230,118,0.08); border:1px solid rgba(0,230,118,0.2); color:var(--safe); }
+.recommendation.block  { background:rgba(255,59,92,0.15); border:1px solid rgba(255,59,92,0.4); color:var(--danger); box-shadow:0 0 20px rgba(255,59,92,0.2); }
+.recommendation.review { background:rgba(255,179,0,0.12); border:1px solid rgba(255,179,0,0.4); color:var(--warn); box-shadow:0 0 20px rgba(255,179,0,0.15); }
+.recommendation.approve{ background:rgba(0,230,118,0.12); border:1px solid rgba(0,230,118,0.3); color:var(--safe); box-shadow:0 0 20px rgba(0,230,118,0.2); }
+
+/* Risk Level Badges */
+.risk-badge {
+  display:inline-block;
+  padding:4px 10px; border-radius:12px;
+  font-size:10px; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.5px;
+  font-family:var(--font-mono);
+}
+.risk-badge.high {
+  background:rgba(255,59,92,0.15);
+  border:1px solid rgba(255,59,92,0.3);
+  color:var(--danger);
+}
+.risk-badge.medium {
+  background:rgba(255,179,0,0.12);
+  border:1px solid rgba(255,179,0,0.3);
+  color:var(--warn);
+}
+.risk-badge.low {
+  background:rgba(0,230,118,0.12);
+  border:1px solid rgba(0,230,118,0.3);
+  color:var(--safe);
+}
 
 /* ============================================================ BULK */
 .bulk-dropzone {
@@ -416,6 +493,18 @@ main {
   0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(0,230,118,0.4); }
   50%      { opacity:0.8; box-shadow:0 0 0 5px rgba(0,230,118,0); }
 }
+@keyframes slideIn {
+  from { opacity:0; transform:translateX(-20px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(0,229,255,0.3)); }
+  50%      { filter: drop-shadow(0 0 20px rgba(0,229,255,0.6)); }
+}
+@keyframes countUp {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
 
 /* ============================================================ TOAST */
 .toast {
@@ -438,6 +527,16 @@ main {
   <div class="header-title">
     <h1>Fraud Detection System</h1>
     <p>Weighted RF Ensemble · Precision 92.4% · Recall 86.7%</p>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:20px;align-items:center">
+    <div class="header-stat">
+      <div class="header-stat-val" id="headerPredictions">—</div>
+      <div class="header-stat-lbl">Predictions</div>
+    </div>
+    <div class="header-stat">
+      <div class="header-stat-val" id="headerFraudRate">—</div>
+      <div class="header-stat-lbl">Fraud Rate</div>
+    </div>
   </div>
   <div class="status-badge">
     <div class="status-dot"></div>
@@ -544,14 +643,19 @@ main {
           </div>
         </div>
         <div class="result-body">
-          <!-- Probability meter -->
-          <div class="prob-meter">
-            <div class="prob-label">
-              <span>FRAUD PROBABILITY</span>
-              <span id="probPct">—</span>
-            </div>
-            <div class="prob-track">
-              <div class="prob-fill" id="probFill" style="width:0%"></div>
+          <!-- Circular Gauge -->
+          <div class="gauge-container">
+            <svg class="gauge-svg" viewBox="0 0 120 120">
+              <!-- Background circle -->
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface2)" stroke-width="8"/>
+              <!-- Gauge arc -->
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--accent)" stroke-width="8"
+                stroke-dasharray="0 314" stroke-dashoffset="0" id="gaugeArc"
+                stroke-linecap="round" transform="rotate(-90 60 60)"/>
+            </svg>
+            <div class="gauge-center">
+              <div class="gauge-value" id="gaugeValue">0%</div>
+              <div class="gauge-label">Fraud Probability</div>
             </div>
           </div>
 
@@ -806,6 +910,27 @@ let currentFilter   = 'all';
 let browserFilter   = 'all';
 let currentTxn      = null;
 let bulkResults     = null;
+let predictionCount = 0;
+let fraudDetected   = 0;
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  updateHeaderStats();
+});
+
+function updateHeaderStats() {
+  document.getElementById('headerPredictions').textContent = predictionCount;
+  const fraudRate = predictionCount > 0 ? ((fraudDetected / predictionCount) * 100).toFixed(1) + '%' : '—';
+  document.getElementById('headerFraudRate').textContent = fraudRate;
+}
+
+function incrementPredictions(isFraud) {
+  predictionCount++;
+  if (isFraud) fraudDetected++;
+  updateHeaderStats();
+}
 
 // ============================================================
 // TAB SWITCHING
@@ -907,6 +1032,7 @@ async function runPrediction() {
     });
     const data = await res.json();
     loader.classList.remove('show');
+    incrementPredictions(data.decision === 'FRAUD');
     renderResult(data);
   } catch(e) {
     loader.classList.remove('show');
@@ -917,6 +1043,7 @@ async function runPrediction() {
 function renderResult(data) {
   const panel    = document.getElementById('resultPanel');
   const isFraud  = data.decision === 'FRAUD';
+  const probPct  = data.probability_pct;
 
   // Header
   const header   = document.getElementById('resultHeader');
@@ -926,16 +1053,30 @@ function renderResult(data) {
   decEl.textContent  = data.decision;
   decEl.className    = 'result-decision ' + (isFraud ? 'fraud' : 'legit');
   document.getElementById('resultSub').textContent =
-    `Probability: ${data.probability_pct}%  ·  Threshold: ${(data.threshold*100).toFixed(0)}%`;
+    `Probability: ${probPct}%  ·  Threshold: ${(data.threshold*100).toFixed(0)}%`;
 
-  // Prob meter
-  const fill = document.getElementById('probFill');
-  fill.style.width   = data.probability_pct + '%';
-  fill.className     = 'prob-fill ' + (isFraud ? 'fraud' : 'legit');
-  document.getElementById('probPct').textContent = data.probability_pct + '%';
+  // Circular Gauge with SVG arc
+  const circumference = 2 * Math.PI * 50;  // radius = 50
+  const strokeDasharray = (probPct / 100) * circumference;
+  const gaugeArc = document.getElementById('gaugeArc');
+  gaugeArc.style.strokeDasharray = strokeDasharray + ' ' + circumference;
+  
+  // Change arc color based on risk
+  if (probPct >= 70) {
+    gaugeArc.style.stroke = '#ff3b5c';
+    gaugeArc.style.filter = 'drop-shadow(0 0 15px rgba(255,59,92,0.4))';
+  } else if (probPct >= 30) {
+    gaugeArc.style.stroke = '#ffb300';
+    gaugeArc.style.filter = 'drop-shadow(0 0 15px rgba(255,179,0,0.4))';
+  } else {
+    gaugeArc.style.stroke = '#00e676';
+    gaugeArc.style.filter = 'drop-shadow(0 0 15px rgba(0,230,118,0.4))';
+  }
+  
+  document.getElementById('gaugeValue').textContent = probPct + '%';
 
   // Stats
-  document.getElementById('statProb').textContent    = data.probability_pct + '%';
+  document.getElementById('statProb').textContent    = probPct + '%';
   document.getElementById('statLatency').textContent = data.latency_ms;
 
   // SHAP bars
@@ -955,12 +1096,18 @@ function renderResult(data) {
       </div>`;
   });
 
-  // Recommendation
+  // Recommendation with risk badge
   const recEl = document.getElementById('recommend');
   const cls   = data.recommendation.includes('BLOCK')   ? 'block'  :
                 data.recommendation.includes('REVIEW')  ? 'review' : 'approve';
+  const riskCls = probPct >= 70 ? 'high' : probPct >= 30 ? 'medium' : 'low';
   const icon  = cls === 'block' ? '🚫' : cls === 'review' ? '⚠️' : '✅';
-  recEl.innerHTML = `<div class="recommendation ${cls}">${icon} ${data.recommendation}</div>`;
+  recEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-top:16px">
+      <div class="recommendation ${cls}">${icon} ${data.recommendation}</div>
+      <span class="risk-badge ${riskCls}">${riskCls} RISK</span>
+    </div>
+  `;
 
   panel.classList.add('show');
 }
@@ -1007,6 +1154,11 @@ function renderBulkResults(data) {
   document.getElementById('sumLegit').textContent = s.legitimate_count;
   document.getElementById('sumPct').textContent   = s.fraud_percentage + '%';
 
+  // Increment counters
+  fraudDetected += s.fraud_count;
+  predictionCount += s.total_transactions;
+  updateHeaderStats();
+
   const total = s.total_transactions;
   const rd    = s.risk_distribution;
   document.getElementById('riskHigh').style.width      = (rd.high_risk/total*100)+'%';
@@ -1025,7 +1177,7 @@ function renderBulkResults(data) {
       <tr>
         <td>${t.id}</td>
         <td><span class="badge ${isFraud?'fraud':'legit'}">${t.decision}</span></td>
-        <td style="color:${isFraud?'var(--danger)':'var(--safe)'}">${t.probability_pct}%</td>
+        <td style="color:${isFraud?'var(--danger)':'var(--safe)'};font-weight:700">${t.probability_pct}%</td>
         <td><span class="badge ${t.risk_level.toLowerCase()}">${t.risk_level}</span></td>
         <td>$${Number(t.amount).toFixed(2)}</td>
       </tr>`;
@@ -1036,6 +1188,7 @@ function renderBulkResults(data) {
   }
 
   document.getElementById('bulkSummary').classList.add('show');
+  showToast(`Bulk Analysis Complete: ${s.fraud_count} fraud detected!`, 'success');
 }
 
 function hideBulkSummary() {

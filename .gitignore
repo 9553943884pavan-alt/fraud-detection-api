@@ -9,11 +9,23 @@ __pycache__/
 
 # Environment variables
 .env
+.env.local
+
+# Logs
+*.log
+fraud_detection_api.log*
 
 # VS Code settings
 .vscode/
 
+# IDE
+.idea/
+*.swp
+*.swo
 
+# OS
+.DS_Store
+Thumbs.db
 
 # Jupyter checkpoints
 .ipynb_checkpoints/

@@ -59,6 +59,19 @@ MAX_BULK_PREDICT_SIZE = 1000
 MIN_FEATURE_COUNT = 30
 
 # ============================================================
+# PHASE 3: BACKEND IMPROVEMENTS
+# ============================================================
+# Rate Limiting
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv('RATE_LIMIT_MAX', 100))
+RATE_LIMIT_WINDOW = int(os.getenv('RATE_LIMIT_WINDOW', 60))
+
+# API Key (optional)
+API_KEY = os.getenv('API_KEY', None)
+
+# Prediction Cache
+PREDICTION_CACHE_SIZE = int(os.getenv('CACHE_SIZE', 1000))
+
+# ============================================================
 # VALIDATION CONSTRAINTS
 # ============================================================
 VALID_FILTERS = ['all', 'fraud', 'legitimate']

@@ -12,7 +12,14 @@ import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
+from collections import defaultdict
+import hashlib
+import json
 import config
+
+# In-memory store for prediction history
+prediction_history = []
+MAX_HISTORY_SIZE = 50
 
 # ============================================================
 # LOGGING SETUP
@@ -43,8 +50,33 @@ def setup_logging():
 
 logger = setup_logging()
 
+# In-memory stores for Phase 3
+rate_limits = defaultdict(list)
+prediction_cache = {}
+
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# ============================================================
+# PHASE 3: MIDDLEWARE & HELPERS
+# ============================================================
+def check_rate_limit(ip):
+    """Simple in-memory rate limiting."""
+    now = time.time()
+    # Clean up old timestamps
+    rate_limits[ip] = [t for t in rate_limits[ip] if now - t < config.RATE_LIMIT_WINDOW]
+    
+    if len(rate_limits[ip]) >= config.RATE_LIMIT_MAX_REQUESTS:
+        return False
+    
+    rate_limits[ip].append(now)
+    return True
+
+def get_cache_key(feature_data):
+    """Generate a unique key for the feature data."""
+    # Sort keys for consistency
+    feat_json = json.dumps(feature_data, sort_keys=True)
+    return hashlib.md5(feat_json.encode()).hexdigest()
 
 # ============================================================
 # LOAD MODEL ON STARTUP
@@ -199,14 +231,15 @@ def get_shap_explanation(X_row):
         direction = 'toward_fraud' if contribution > 0 else 'away_from_fraud'
         top_features.append({
             'feature': feat,
-            'shap_value': round(abs(contribution), 4),
+            'shap_value': float(abs(contribution)), # Increased precision
             'direction': direction,
-            'raw_value': round(float(X_row[0][Features.index(feat)]), 4)
+            'raw_value': round(float(X_row[0][Features.index(feat)]), 4),
+            'importance': float(imp) # Added base importance for context
         })
 
     return {
         'top_features': top_features,
-        'base_value': base
+        'base_value': float(base)
     }
 
 
@@ -237,6 +270,15 @@ def index():
     except Exception as e:
         logger.error(f"Error serving index: {str(e)}")
         return jsonify({'error': 'Failed to load frontend'}), 500
+
+
+@app.route('/prediction_history', methods=['GET'])
+def get_prediction_history():
+    """Return the recent prediction history."""
+    return jsonify({
+        'predictions': prediction_history,
+        'count': len(prediction_history)
+    }), 200
 
 
 # ------------------------------------------------------------
@@ -302,12 +344,31 @@ def get_transaction():
 def predict():
     start = time.time()
     
+    # Rate Limiting
+    if not check_rate_limit(request.remote_addr):
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+    
+    # API Key Auth (if configured)
+    if config.API_KEY:
+        provided_key = request.headers.get('X-API-Key')
+        if provided_key != config.API_KEY:
+            return jsonify({'error': 'Unauthorized: Valid API key required'}), 401
+    
     try:
         data = request.get_json()
         
         if not data:
             logger.warning("Empty request body received")
             return jsonify({'error': 'Request body must be JSON'}), 400
+            
+        # Check Cache
+        cache_key = get_cache_key(data.get('feature_data', {}))
+        if cache_key in prediction_cache:
+            logger.info("Serving cached prediction")
+            cached_res = prediction_cache[cache_key].copy()
+            cached_res['cached'] = True
+            cached_res['latency_ms'] = round((time.time() - start) * 1000, 2)
+            return jsonify(cached_res), 200
         
         # Validate feature_data presence
         if 'feature_data' not in data:
@@ -351,6 +412,24 @@ def predict():
         }
         
         logger.info(f"Prediction: {decision} (prob={prob:.4f}, latency={latency_ms}ms)")
+        
+        # Store in history
+        history_item = {
+            'timestamp': time.time(),
+            'decision': decision,
+            'probability': round(prob, 4),
+            'amount': data.get('amount', 0),
+            'risk_level': risk
+        }
+        prediction_history.insert(0, history_item)
+        if len(prediction_history) > MAX_HISTORY_SIZE:
+            prediction_history.pop()
+            
+        # Store in cache
+        if len(prediction_cache) < config.PREDICTION_CACHE_SIZE:
+            response['cached'] = False
+            prediction_cache[cache_key] = response
+            
         return jsonify(response), 200
 
     except Exception as e:

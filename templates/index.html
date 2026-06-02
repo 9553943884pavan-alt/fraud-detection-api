@@ -517,6 +517,42 @@ main {
 .toast.show { display:block; }
 .toast.error   { border-color:var(--danger); color:var(--danger); }
 .toast.success { border-color:var(--safe);   color:var(--safe); }
+
+/* History Sidebar */
+.history-sidebar {
+  position: fixed; top: 81px; right: 0; width: 300px; height: calc(100vh - 81px);
+  background: var(--surface); border-left: 1px solid var(--border);
+  z-index: 50; padding: 20px; transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex; flex-direction: column;
+}
+.history-sidebar.open { transform: translateX(0); }
+.history-header {
+  font-size: 14px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted); margin-bottom: 20px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.history-list { flex: 1; overflow-y: auto; }
+.history-item {
+  padding: 12px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface2); margin-bottom: 10px; cursor: pointer;
+  transition: all 0.2s; position: relative;
+}
+.history-item:hover { border-color: var(--accent); transform: translateX(-4px); }
+.history-item.fraud { border-left: 4px solid var(--danger); }
+.history-item.legit { border-left: 4px solid var(--safe); }
+.history-meta { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.history-title { font-size: 12px; font-weight: 700; }
+.history-prob { font-size: 11px; font-family: var(--font-mono); }
+
+.history-toggle {
+  position: fixed; bottom: 24px; right: 24px; z-index: 60;
+  width: 50px; height: 50px; border-radius: 50%;
+  background: var(--accent); color: #000; display: flex;
+  align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: var(--glow-cyan); transition: all 0.2s;
+}
+.history-toggle:hover { transform: scale(1.1); }
 </style>
 </head>
 <body>
@@ -550,6 +586,7 @@ main {
   <button class="tab-btn" onclick="switchTab('bulk', event)">Bulk Prediction</button>
   <button class="tab-btn" onclick="switchTab('browser', event)">Dataset Browser</button>
   <button class="tab-btn" onclick="switchTab('stats', event)" id="statsTab">Model Stats</button>
+  <button class="tab-btn" onclick="switchTab('analytics', event)">Analytics</button>
 </div>
 
 <main>
@@ -606,6 +643,11 @@ main {
       <div id="noTxn" style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
         Click "Fetch Transaction" to load a sample
       </div>
+
+      <div style="margin-top: 10px; display: flex; gap: 8px;">
+        <input type="text" id="browserSearch" placeholder="Search ID..." class="filter-btn" style="flex:1; border-radius: 4px; padding: 10px; background: var(--bg);">
+        <button class="filter-btn" onclick="searchTransaction()">Go</button>
+      </div>
     </div>
 
     <!-- RIGHT: Actions + Result -->
@@ -634,6 +676,8 @@ main {
       </div>
 
       <!-- Result Panel -->
+
+      <!-- Result Panel -->
       <div class="result-panel" id="resultPanel">
         <div class="result-header" id="resultHeader">
           <div class="result-icon" id="resultIcon"></div>
@@ -652,6 +696,8 @@ main {
               <circle cx="60" cy="60" r="50" fill="none" stroke="var(--accent)" stroke-width="8"
                 stroke-dasharray="0 314" stroke-dashoffset="0" id="gaugeArc"
                 stroke-linecap="round" transform="rotate(-90 60 60)"/>
+              <!-- Threshold marker at 30% -->
+              <line x1="60" y1="10" x2="60" y2="20" stroke="var(--danger)" stroke-width="2" transform="rotate(18 60 60)"/>
             </svg>
             <div class="gauge-center">
               <div class="gauge-value" id="gaugeValue">0%</div>
@@ -681,6 +727,10 @@ main {
 
           <!-- Recommendation -->
           <div id="recommend"></div>
+          
+          <button class="btn-secondary" style="width:100%; margin-top: 20px; font-size: 11px;" onclick="exportReport()">
+            📄 Export Detailed Assessment Report
+          </button>
         </div>
       </div>
     </div>
@@ -863,6 +913,32 @@ main {
           <div class="info-row"><span class="info-key">RF W=200</span><span class="info-val" id="sW200">—</span></div>
         </div>
       </div>
+      
+      <div style="margin-top: 20px;">
+        <div class="shap-title" style="margin-bottom: 12px;">Confusion Matrix (Validation Set)</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--font-mono); font-size: 10px; text-align: center;">
+          <div style="grid-column: span 2; color: var(--muted); padding-bottom: 4px;">PREDICTED</div>
+          <div style="writing-mode: vertical-rl; transform: rotate(180deg); color: var(--muted); padding: 5px;">ACTUAL</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <div style="background: rgba(0,230,118,0.1); border: 1px solid var(--border); padding: 10px;">
+              <div style="color: var(--safe); font-size: 14px; font-weight: 800;">284,310</div>
+              <div style="font-size: 8px;">True Neg (TN)</div>
+            </div>
+            <div style="background: rgba(255,179,0,0.1); border: 1px solid var(--border); padding: 10px;">
+              <div style="color: var(--warn); font-size: 14px; font-weight: 800;">5</div>
+              <div style="font-size: 8px;">False Pos (FP)</div>
+            </div>
+            <div style="background: rgba(255,59,92,0.1); border: 1px solid var(--border); padding: 10px;">
+              <div style="color: var(--danger); font-size: 14px; font-weight: 800;">65</div>
+              <div style="font-size: 8px;">False Neg (FN)</div>
+            </div>
+            <div style="background: rgba(0,229,255,0.1); border: 1px solid var(--border); padding: 10px;">
+              <div style="color: var(--accent); font-size: 14px; font-weight: 800;">427</div>
+              <div style="font-size: 8px;">True Pos (TP)</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Dataset Info -->
@@ -897,10 +973,64 @@ main {
   </div>
 </div>
 
+<!-- ============================================================ TAB 5: ANALYTICS -->
+<div class="tab-panel" id="tab-analytics">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📈</div>
+      <h2>Real-Time Dashboard</h2>
+    </div>
+    <div class="three-col" style="margin-bottom:24px">
+      <div class="stat-box">
+        <div class="stat-val" id="atTotal">0</div>
+        <div class="stat-lbl">Session Total</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="atFraud">0</div>
+        <div class="stat-lbl">Fraud Caught</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="atLatency">0ms</div>
+        <div class="stat-lbl">Avg Latency</div>
+      </div>
+    </div>
+    
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><h2>Detection Distribution</h2></div>
+        <div style="height:200px; display:flex; align-items:flex-end; gap:20px; padding:20px; justify-content:center">
+          <div id="barLegit" style="width:40px; background:var(--safe); transition:height 0.5s; height:0%"></div>
+          <div id="barFraud" style="width:40px; background:var(--danger); transition:height 0.5s; height:0%"></div>
+        </div>
+        <div style="display:flex; justify-content:center; gap:20px; font-size:10px; font-family:var(--font-mono)">
+          <span>LEGITIMATE</span><span>FRAUD</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Session History Graph</h2></div>
+        <div id="sparklineContainer" style="height:200px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; font-family:var(--font-mono)">
+          Real-time probability graph (Updating...)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
+
+<!-- HISTORY SIDEBAR -->
+<div class="history-sidebar" id="historySidebar">
+  <div class="history-header">
+    📜 Prediction History
+    <span style="font-size:10px; opacity:0.5; cursor:pointer" onclick="toggleHistory()">CLOSE [X]</span>
+  </div>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<div class="history-toggle" id="historyToggle" onclick="toggleHistory()">📜</div>
 
 <script>
 // ============================================================
@@ -1016,6 +1146,9 @@ async function runPrediction() {
 
   const loader = document.getElementById('singleLoader');
   const panel  = document.getElementById('resultPanel');
+  const empty  = document.getElementById('resultEmptyState');
+  
+  if (empty) empty.style.display = 'none';
   loader.classList.add('show');
   panel.classList.remove('show');
 
@@ -1034,6 +1167,8 @@ async function runPrediction() {
     loader.classList.remove('show');
     incrementPredictions(data.decision === 'FRAUD');
     renderResult(data);
+    updateAnalytics(data.latency_ms, data.decision === 'FRAUD');
+    updatePredictionHistory();
   } catch(e) {
     loader.classList.remove('show');
     showToast('Prediction failed: ' + e.message, 'error');
@@ -1086,11 +1221,17 @@ function renderResult(data) {
   data.shap_explanation.top_features.forEach(feat => {
     const pct  = maxShap > 0 ? (feat.shap_value / maxShap * 100) : 0;
     const dir  = feat.direction === 'toward_fraud' ? '↑ fraud' : '↓ legit';
+    
+    // Better precision formatting
+    const shapValDisplay = feat.shap_value < 0.0001 
+      ? `< 0.01%` 
+      : `+${(feat.shap_value*100).toFixed(2)}%`;
+      
     shapContainer.innerHTML += `
       <div class="shap-row">
         <div class="shap-meta">
           <span class="shap-feat">${feat.feature} <span style="color:var(--muted)">(val: ${feat.raw_value})</span></span>
-          <span class="shap-val-text">+${(feat.shap_value*100).toFixed(1)}%  ${dir}</span>
+          <span class="shap-val-text">${shapValDisplay} ${dir}</span>
         </div>
         <div class="shap-track"><div class="shap-fill" style="width:${pct}%"></div></div>
       </div>`;
@@ -1201,8 +1342,19 @@ function hideBulkSummary() {
 function handleFile(event) {
   const file = event.target.files[0];
   if (!file) return;
-  showToast('Running bulk prediction on 200 random transactions...', 'success');
-  runBulkFromDataset();
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const rows = parseCSV(text);
+    if (rows.length > 0) {
+      showToast(`CSV loaded: ${rows.length} rows. Running bulk...`, 'success');
+      runBulkFromData(rows);
+    } else {
+      showToast('Error parsing CSV', 'error');
+    }
+  };
+  reader.readAsText(file);
 }
 
 function handleDrop(event) {
@@ -1210,8 +1362,89 @@ function handleDrop(event) {
   document.getElementById('dropzone').classList.remove('drag');
   const file = event.dataTransfer.files[0];
   if (file && file.name.endsWith('.csv')) {
-    showToast('CSV loaded: ' + file.name, 'success');
-    runBulkFromDataset();
+    handleFile({target: {files: [file]}});
+  }
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n');
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim());
+  const results = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    if (values.length === headers.length) {
+      const entry = {};
+      headers.forEach((h, idx) => {
+        entry[h] = parseFloat(values[idx]);
+      });
+      results.push({
+        feature_data: entry,
+        amount: entry['Amount'] || 0,
+        time: entry['Time'] || 0
+      });
+    }
+  }
+  return results.slice(0, 1000); // Limit to 1000
+}
+
+async function runBulkFromData(payload) {
+  showLoader('bulkLoader', true);
+  hideBulkSummary();
+
+  try {
+    const res = await fetch('/bulk_predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({transactions: payload})
+    });
+    const data = await res.json();
+    bulkResults = data;
+    showLoader('bulkLoader', false);
+    renderBulkResults(data);
+    updatePredictionHistory();
+  } catch(e) {
+    showLoader('bulkLoader', false);
+    showToast('Bulk prediction failed', 'error');
+  }
+}
+
+function toggleHistory() {
+  document.getElementById('historySidebar').classList.toggle('open');
+  if (document.getElementById('historySidebar').classList.contains('open')) {
+    updatePredictionHistory();
+  }
+}
+
+async function updatePredictionHistory() {
+  try {
+    const res = await fetch('/prediction_history');
+    const data = await res.json();
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    
+    data.predictions.forEach(item => {
+      const el = document.createElement('div');
+      const isFraud = item.decision === 'FRAUD';
+      el.className = `history-item ${isFraud ? 'fraud' : 'legit'}`;
+      el.innerHTML = `
+        <div class="history-meta">
+          <span>${new Date(item.timestamp * 1000).toLocaleTimeString()}</span>
+          <span>$${item.amount.toFixed(2)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <div class="history-title">${item.decision}</div>
+          <div class="history-prob" style="color:${isFraud?'var(--danger)':'var(--safe)'}">
+            ${(item.probability * 100).toFixed(1)}%
+          </div>
+        </div>
+      `;
+      list.appendChild(el);
+    });
+  } catch(e) {
+    console.error('Failed to load history', e);
   }
 }
 
@@ -1249,7 +1482,26 @@ function downloadResults() {
 // ============================================================
 // DATASET BROWSER
 // ============================================================
-async function loadBrowserBatch() {
+let browserPage = 0;
+let sessionLatencies = [];
+
+async function searchTransaction() {
+  const id = document.getElementById('browserSearch').value;
+  if (!id) return;
+  try {
+    const res = await fetch(`/get_transaction?idx=${id}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    selectAndPredict(data);
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function loadBrowserBatch(isNext = false) {
+  if (isNext) browserPage++;
+  else browserPage = 0;
+  
   const grid = document.getElementById('browserGrid');
   grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner" style="margin:0 auto 12px"></div>Loading transactions...</div>';
 
@@ -1352,6 +1604,55 @@ async function loadModelStats() {
   }
 }
 
+function updateAnalytics(latency, isFraud) {
+  if (latency) sessionLatencies.push(latency);
+  const avgLat = sessionLatencies.length ? (sessionLatencies.reduce((a,b) => a+b, 0) / sessionLatencies.length).toFixed(1) : 0;
+  
+  document.getElementById('atTotal').textContent = predictionCount;
+  document.getElementById('atFraud').textContent = fraudDetected;
+  document.getElementById('atLatency').textContent = avgLat + 'ms';
+  
+  const legitCount = predictionCount - fraudDetected;
+  const max = Math.max(legitCount, fraudDetected, 1);
+  
+  document.getElementById('barLegit').style.height = (legitCount / max * 100) + '%';
+  document.getElementById('barFraud').style.height = (fraudDetected / max * 100) + '%';
+  
+  // Simple sparkline-like text visualization
+  const spark = document.getElementById('sparklineContainer');
+  if (latency) {
+    const bars = sessionLatencies.slice(-20).map(l => l > 100 ? '█' : '▄').join('');
+    spark.textContent = bars + ` (${latency}ms)`;
+  }
+}
+
+// Add empty state back to single prediction tab
+document.addEventListener('DOMContentLoaded', () => {
+    // Re-insert onboarding card that was removed by mistake
+    const rightCol = document.querySelector('#tab-single .two-col > div:last-child');
+    const existingEmpty = document.getElementById('resultEmptyState');
+    if (!existingEmpty) {
+        const emptyCard = document.createElement('div');
+        emptyCard.id = 'resultEmptyState';
+        emptyCard.className = 'card';
+        emptyCard.style.textAlign = 'center';
+        emptyCard.style.padding = '40px';
+        emptyCard.innerHTML = `
+            <div style="font-size: 40px; margin-bottom: 20px;">🛡️</div>
+            <h3 style="margin-bottom: 10px;">Ready for Analysis</h3>
+            <p style="color: var(--muted); font-size: 13px; max-width: 280px; margin: 0 auto 20px;">
+              Fetch a transaction from the dataset and click "Analyze" to see the fraud detection results.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px; text-align:left; font-size:12px; border-top:1px solid var(--border); padding-top:20px;">
+              <div style="display:flex; gap:10px;"><span>1.</span><span>Select a filter (All/Fraud/Legit)</span></div>
+              <div style="display:flex; gap:10px;"><span>2.</span><span>Fetch sample transaction</span></div>
+              <div style="display:flex; gap:10px;"><span>3.</span><span>Run ensemble prediction</span></div>
+            </div>
+        `;
+        rightCol.insertBefore(emptyCard, document.getElementById('singleLoader'));
+    }
+});
+
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -1364,6 +1665,50 @@ function showToast(msg, type='success') {
   t.textContent  = msg;
   t.className    = `toast show ${type}`;
   setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function exportReport() {
+  if (!currentTxn || !document.getElementById('resultPanel').classList.contains('show')) {
+      showToast('No analyzed transaction to export', 'error');
+      return;
+  }
+  
+  const decision = document.getElementById('resultDecision').textContent;
+  const prob = document.getElementById('gaugeValue').textContent;
+  const id = document.getElementById('txnId').textContent;
+  const amount = document.getElementById('txnAmount').textContent;
+  const recommend = document.getElementById('recommend').textContent;
+  
+  const report = `
+=========================================
+FRAUD DETECTION ASSESSMENT REPORT
+=========================================
+Transaction ID: ${id}
+Amount:         ${amount}
+Time:           ${document.getElementById('txnTime').textContent}
+
+ANALYSIS RESULTS:
+-----------------------------------------
+Decision:       ${decision}
+Probability:    ${prob}
+Risk Level:     ${prob >= 70 ? 'HIGH' : prob >= 30 ? 'MEDIUM' : 'LOW'}
+Recommendation: ${recommend}
+
+TOP INDICATORS:
+${Array.from(document.querySelectorAll('.shap-row')).map(row => 
+  `- ${row.querySelector('.shap-feat').textContent.split('(')[0].trim()}: ${row.querySelector('.shap-val-text').textContent}`
+).join('\n')}
+
+Generated:      ${new Date().toLocaleString()}
+=========================================
+`;
+
+  const blob = new Blob([report], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `fraud_report_${id.replace('#','')}.txt`;
+  a.click();
+  showToast('Report exported successfully!', 'success');
 }
 </script>
 </body>

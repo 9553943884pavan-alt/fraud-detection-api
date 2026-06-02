@@ -459,8 +459,7 @@ ML catches pattern-based fraud (V-feature anomalies). Rules catch behavior-based
 ## 👨‍💻 Author
 
 **Pavan Kumar** (Thunuguntla Venkata Pavan Kumar)  
-B.Tech ECE | IIIT Allahabad | Class of 2029  
-Student ID: IEC2025049 | CGPA: 9.20
+B.Tech ECE | IIIT Allahabad | 
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077b5?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/pavan-kumar-7274aa352/)
 [![GitHub](https://img.shields.io/badge/GitHub-Profile-181717?style=flat-square&logo=github)](https://github.com/9553943884pavan-alt)
